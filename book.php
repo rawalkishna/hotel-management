@@ -92,38 +92,62 @@
 </script>
 
 	</form>
-<?php
+  <?php
+session_start();
+require 'db.php';
+
+// Define $room_id and $user_id from GET/SESSION if not already defined
+if (!isset($_GET['room_id']) || !isset($_SESSION['user_id'])) {
+    die("Required room ID or user ID is missing.");
+}
+
+$room_id = intval($_GET['room_id']);
+$user_id = intval($_SESSION['user_id']);
+
 if (isset($_POST['submit'])) {
+    $dates = date('Y-m-d');
 
-	$dates = date('Y-m-d');
-	$query1 = "INSERT INTO `tbl_booking`(`room_id`, `user_id`, `booking_date`) VALUES ($room_id,$user_id,'$dates')";
-	$run1 = mysqli_query($con,$query1);
+    // Insert booking details into tbl_booking
+    $query1 = "INSERT INTO `tbl_booking` (`room_id`, `user_id`, `booking_date`) VALUES ('$room_id', '$user_id', '$dates')";
+    $run1 = mysqli_query($con, $query1);
 
-	$booking_id = mysqli_insert_id($con);
-	//echo "<pre>";
-	$user_name = $_POST['user_name'];
-	$user_age = $_POST['user_age'];
-	$user_gender = $_POST['user_gender'];
-	/* print_r($user_name);
-	 print_r($user_age);
-	 print_r($user_gender);
-	 echo count($user_name);*/
-	 for ($i=0; $i < count($user_name); $i++) { 
-	 	$user_name_temp = $user_name[$i];
-		$user_age_temp = $user_age[$i];
-		$user_gender_temp = $user_gender[$i];
+    if ($run1) {
+        $booking_id = mysqli_insert_id($con); // Get the booking ID of the new entry
 
-		$query2 = "INSERT INTO `tbl_booking_user`(`booking_id`, `user_name`, `user_age`, `user_gender`) VALUES ($booking_id,'$user_name_temp',$user_age_temp,'$user_gender_temp')";
-		//echo $query2;exit;
-		$run2 = mysqli_query($con,$query2);
+        // Loop through user details and insert them into tbl_booking_user
+        $user_name = $_POST['user_name'];
+        $user_age = $_POST['user_age'];
+        $user_gender = $_POST['user_gender'];
 
-      $query3="UPDATE tbl_room SET isBooked='1' where room_id = '".$room_id."'";
-                        $run3=mysqli_query($con,$query3);
+        for ($i = 0; $i < count($user_name); $i++) {
+            $user_name_temp = mysqli_real_escape_string($con, $user_name[$i]);
+            $user_age_temp = intval($user_age[$i]);
+            $user_gender_temp = mysqli_real_escape_string($con, $user_gender[$i]);
 
-      $url = "profile.php";
-      $_SESSION['msg'] = 'Booking Successful';
-                header('Location: '.$url);
-	 }
-	//exit;
+            $query2 = "INSERT INTO `tbl_booking_user` (`booking_id`, `user_name`, `user_age`, `user_gender`) VALUES ('$booking_id', '$user_name_temp', '$user_age_temp', '$user_gender_temp')";
+            $run2 = mysqli_query($con, $query2);
+
+            // Check if query2 fails
+            if (!$run2) {
+                die("Error in user details insertion: " . mysqli_error($con));
+            }
+        }
+
+        // Update room status to booked
+        $query3 = "UPDATE tbl_room SET isBooked='1' WHERE room_id = '$room_id'";
+        $run3 = mysqli_query($con, $query3);
+
+        // Check if query3 fails
+        if (!$run3) {
+            die("Error in room update: " . mysqli_error($con));
+        }
+
+        // Redirect to profile page with a success message
+        $_SESSION['msg'] = 'Booking Successful';
+        header('Location: profile.php');
+        exit();
+    } else {
+        die("Error in booking insertion: " . mysqli_error($con));
+    }
 }
 ?>
